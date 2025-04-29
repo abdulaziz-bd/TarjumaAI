@@ -46,6 +46,7 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
           placeholder={
             translation?.[inputLanguage] || "Type or paste text here..."
           }
+          value={text}
         ></textarea>
       </div>
       <div className="flex items-center justify-between mt-4">
