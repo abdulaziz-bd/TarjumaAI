@@ -6,11 +6,14 @@ import { getTranslation } from "./translation";
 
 interface TranslateBoxProps {
   translateLanguage: string;
+  text: string;
 }
 
 const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
-  const { translateLanguage } = props;
-  const [translation, setTranslation] = React.useState<{ [key: string]: string }>({});
+  const { translateLanguage, text } = props;
+  const [translation, setTranslation] = React.useState<{
+    [key: string]: string;
+  }>({});
 
   React.useEffect(() => {
     const fetchTranslation = async () => {
@@ -41,8 +44,10 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
       </div>
       <div className="flex-1 p-4 overflow-auto">
         <p className="text-gray-800">
-          {translation?.[translateLanguage] ||
-            "Translation will appear here..."}
+          {text
+            ? text
+            : translation?.[translateLanguage] ||
+              "Translation will appear here..."}
         </p>
       </div>
       <div className="flex justify-end mt-4">

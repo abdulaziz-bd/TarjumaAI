@@ -1,4 +1,5 @@
 import React from "react";
+import { FaStop } from "react-icons/fa";
 import { FaMicrophone } from "react-icons/fa6";
 import { HiMiniSpeakerWave } from "react-icons/hi2";
 import { IoClose } from "react-icons/io5";
@@ -6,10 +7,13 @@ import { getTranslation } from "./translation";
 
 interface InputBoxProps {
   inputLanguage: string;
+  recording: boolean;
+  setRecording: (recording: boolean) => void;
+  text: string;
 }
 
 const InputBox: React.FC<InputBoxProps> = (props) => {
-  const { inputLanguage } = props;
+  const { inputLanguage, recording, setRecording, text } = props;
   const [translation, setTranslation] = React.useState<{
     [key: string]: string;
   }>({});
@@ -45,8 +49,11 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
         ></textarea>
       </div>
       <div className="flex items-center justify-between mt-4">
-        <button className="p-4 bg-green-500 text-white rounded-full shadow-md hover:bg-green-600">
-          <FaMicrophone />
+        <button
+          className="p-4 bg-green-500 text-white rounded-full shadow-md hover:bg-green-600"
+          onClick={() => setRecording(!recording)}
+        >
+          {recording ? <FaStop /> : <FaMicrophone />}
         </button>
         <button className="px-6 py-2 bg-blue-500 text-white rounded-full shadow-md hover:bg-blue-600">
           Translate
