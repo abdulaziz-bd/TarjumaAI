@@ -32,7 +32,14 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = (props) => {
   const [isAutoDetect, setIsAutoDetect] = useState(true);
 
   // Available languages
-  const languages = ["English", "Arabic", "Deutsch"];
+  const languages = [
+    "English",
+    "Arabic",
+    "Deutsch",
+    "Spanish",
+    "French",
+    "Bengali",
+  ];
 
   const handleLeftLanguageSelect = (language: string) => {
     if (language === translateLanguage) {

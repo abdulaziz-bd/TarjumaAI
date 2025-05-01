@@ -42,6 +42,25 @@ const Translator: React.FC = () => {
   const [text, setText] = useState("");
   const [tps, setTps] = useState(0);
 
+  // Function to start recording manually
+  const startRecording = () => {
+    if (
+      recorderRef.current &&
+      status === "ready" &&
+      !recording &&
+      !isProcessing
+    ) {
+      recorderRef.current.start();
+    }
+  };
+
+  // Function to stop recording manually
+  const stopRecording = () => {
+    if (recorderRef.current && recording) {
+      recorderRef.current.stop();
+    }
+  };
+
   // Check WebGPU availability after component mounts
   useEffect(() => {
     setIsWebGPUAvailable(typeof navigator !== "undefined" && !!navigator.gpu);
@@ -84,7 +103,7 @@ const Translator: React.FC = () => {
           break;
         case "ready":
           setStatus("ready");
-          if (recorderRef.current) recorderRef.current.start();
+          // Removed automatic recorder start
           break;
         case "start":
           setIsProcessing(true);
@@ -269,8 +288,15 @@ const Translator: React.FC = () => {
             recording={recording}
             setRecording={setRecording}
             text={text}
+            setText={setText}
+            onStartRecording={startRecording}
+            onStopRecording={stopRecording}
           />
-          <TranslateBox translateLanguage={translateLanguage} text={text} />
+          <TranslateBox
+            translateLanguage={translateLanguage}
+            targetLang={inputLanguage}
+            textToTranslate={text}
+          />
         </div>
       </div>
     </div>

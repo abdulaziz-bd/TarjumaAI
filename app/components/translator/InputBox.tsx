@@ -10,10 +10,22 @@ interface InputBoxProps {
   recording: boolean;
   setRecording: (recording: boolean) => void;
   text: string;
+  setText: (text: string) => void;
+  onStartRecording: () => void;
+  onStopRecording: () => void;
 }
 
 const InputBox: React.FC<InputBoxProps> = (props) => {
-  const { inputLanguage, recording, setRecording, text } = props;
+  const { 
+    inputLanguage, 
+    recording, 
+    setRecording, 
+    text, 
+    setText, 
+    onStartRecording, 
+    onStopRecording 
+  } = props;
+  
   const [translation, setTranslation] = React.useState<{
     [key: string]: string;
   }>({});
@@ -27,6 +39,24 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
     fetchTranslation();
   }, []);
 
+  const handleClearText = () => {
+    if (recording) {
+      onStopRecording();
+    }
+    setRecording(false);
+    setText("");
+  };
+
+  const handleRecordingToggle = () => {
+    if (recording) {
+      onStopRecording();
+      setRecording(false);
+    } else {
+      onStartRecording();
+      setRecording(true);
+    }
+  };
+
   return (
     <div className="bg-white shadow-md rounded-2xl p-4 mb-4 w-full min-w-[500px] max-w-4xl h-[280px] mr-4 flex flex-col">
       <div className="flex items-center justify-between mb-4">
@@ -36,7 +66,7 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
             <HiMiniSpeakerWave className="text-gray-500 w-6 h-6" />
           </button>
         </div>
-        <button className="p-1">
+        <button className="p-1" onClick={handleClearText}>
           <IoClose className="text-gray-500 w-6 h-6" title="clear text" />
         </button>
       </div>
@@ -47,12 +77,13 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
             translation?.[inputLanguage] || "Type or paste text here..."
           }
           value={text}
+          onChange={(e) => setText(e.target.value)}
         ></textarea>
       </div>
       <div className="flex items-center justify-between mt-4">
         <button
           className="p-4 bg-green-500 text-white rounded-full shadow-md hover:bg-green-600"
-          onClick={() => setRecording(!recording)}
+          onClick={handleRecordingToggle}
         >
           {recording ? <FaStop /> : <FaMicrophone />}
         </button>
