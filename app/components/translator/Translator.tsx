@@ -32,6 +32,7 @@ const Translator: React.FC = () => {
 
   const [inputLanguage, setInputLanguage] = useState("Detect Language");
   const [translateLanguage, setTranslateLanguage] = useState("Arabic");
+  const [triggerTranslation, setTriggerTranslation] = useState(false);
 
   // Processing
   const [recording, setRecording] = useState(false);
@@ -107,7 +108,13 @@ const Translator: React.FC = () => {
           break;
         case "start":
           setIsProcessing(true);
-          if (recorderRef.current) recorderRef.current.requestData();
+          if (recorderRef.current && recording) {
+            try {
+              recorderRef.current.requestData();
+            } catch (error) {
+              console.error("Error requesting data:", error);
+            }
+          }
           break;
         case "update":
           const { tps } = e.data;
@@ -126,7 +133,7 @@ const Translator: React.FC = () => {
         worker.current.removeEventListener("message", onMessageReceived);
       }
     };
-  }, []);
+  }, [recording]);
 
   // MediaRecorder setup
   useEffect(() => {
@@ -150,8 +157,18 @@ const Translator: React.FC = () => {
             if (e.data.size > 0) {
               setChunks((prev) => [...prev, e.data]);
             } else {
+              // Only call requestData if the recorder is in the "recording" state
               setTimeout(() => {
-                if (recorderRef.current) recorderRef.current.requestData();
+                if (
+                  recorderRef.current &&
+                  recorderRef.current.state === "recording"
+                ) {
+                  try {
+                    recorderRef.current.requestData();
+                  } catch (error) {
+                    console.error("Error requesting data:", error);
+                  }
+                }
               }, 25);
             }
           };
@@ -187,31 +204,42 @@ const Translator: React.FC = () => {
       const fileReader = new FileReader();
 
       fileReader.onloadend = async () => {
-        const arrayBuffer = fileReader.result as ArrayBuffer;
-        if (audioContextRef.current) {
-          const decoded = await audioContextRef.current.decodeAudioData(
-            arrayBuffer
-          );
-          let audio = decoded.getChannelData(0);
-          if (audio.length > MAX_SAMPLES) {
-            audio = audio.slice(-MAX_SAMPLES);
-          }
+        try {
+          const arrayBuffer = fileReader.result as ArrayBuffer;
+          if (audioContextRef.current) {
+            const decoded = await audioContextRef.current.decodeAudioData(
+              arrayBuffer
+            );
+            let audio = decoded.getChannelData(0);
+            if (audio.length > MAX_SAMPLES) {
+              audio = audio.slice(-MAX_SAMPLES);
+            }
 
-          if (worker.current) {
-            worker.current.postMessage({
-              type: "generate",
-              data: {
-                audio,
-                language:
-                  inputLanguage !== "Detect Language" ? inputLanguage : "",
-              },
-            });
+            if (worker.current) {
+              worker.current.postMessage({
+                type: "generate",
+                data: {
+                  audio,
+                  language:
+                    inputLanguage !== "Detect Language" ? inputLanguage : "",
+                },
+              });
+            }
           }
+        } catch (error) {
+          console.error("Audio decoding error:", error);
         }
       };
       fileReader.readAsArrayBuffer(blob);
     } else {
-      if (recorderRef.current) recorderRef.current.requestData();
+      // Only request data if the recorder is active
+      if (recorderRef.current && recorderRef.current.state === "recording") {
+        try {
+          recorderRef.current.requestData();
+        } catch (error) {
+          console.error("Error requesting data:", error);
+        }
+      }
     }
   }, [status, recording, isProcessing, chunks, inputLanguage]);
 
@@ -291,11 +319,17 @@ const Translator: React.FC = () => {
             setText={setText}
             onStartRecording={startRecording}
             onStopRecording={stopRecording}
+            setTriggerTranslation={setTriggerTranslation}
           />
           <TranslateBox
             translateLanguage={translateLanguage}
-            targetLang={inputLanguage}
+            inputLanguage={inputLanguage}
+            setInputLanguage={setInputLanguage}
+            targetLang={translateLanguage}
             textToTranslate={text}
+            triggerTranslation={triggerTranslation}
+            setTriggerTranslation={setTriggerTranslation}
+            recording={recording}
           />
         </div>
       </div>

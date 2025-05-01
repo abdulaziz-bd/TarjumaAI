@@ -3,6 +3,7 @@ import { FaStop } from "react-icons/fa";
 import { FaMicrophone } from "react-icons/fa6";
 import { HiMiniSpeakerWave } from "react-icons/hi2";
 import { IoClose } from "react-icons/io5";
+import { toast } from "react-toastify";
 import { getTranslation } from "./translation";
 
 interface InputBoxProps {
@@ -13,19 +14,21 @@ interface InputBoxProps {
   setText: (text: string) => void;
   onStartRecording: () => void;
   onStopRecording: () => void;
+  setTriggerTranslation: (trigger: boolean) => void;
 }
 
 const InputBox: React.FC<InputBoxProps> = (props) => {
-  const { 
-    inputLanguage, 
-    recording, 
-    setRecording, 
-    text, 
-    setText, 
-    onStartRecording, 
-    onStopRecording 
+  const {
+    inputLanguage,
+    recording,
+    setRecording,
+    text,
+    setText,
+    onStartRecording,
+    onStopRecording,
+    setTriggerTranslation,
   } = props;
-  
+
   const [translation, setTranslation] = React.useState<{
     [key: string]: string;
   }>({});
@@ -48,6 +51,13 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
   };
 
   const handleRecordingToggle = () => {
+    if (inputLanguage === "Detect Language") {
+      toast.error("Cannot record when using auto-detect", {
+        position: "bottom-right",
+        autoClose: 2000,
+      });
+      return;
+    }
     if (recording) {
       onStopRecording();
       setRecording(false);
@@ -57,12 +67,25 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
     }
   };
 
+  // Function to speak the translation
+  const speakTranslation = () => {
+    if (text && "speechSynthesis" in window) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      // Try to match language code for speech
+      const langCode = inputLanguage.toLowerCase().slice(0, 2);
+      if (langCode) {
+        utterance.lang = langCode;
+      }
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
   return (
     <div className="bg-white shadow-md rounded-2xl p-4 mb-4 w-full min-w-[500px] max-w-4xl h-[280px] mr-4 flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <span className="text-xl font-bold mr-2">{inputLanguage}</span>
-          <button className="p-1">
+          <button className="p-1" onClick={speakTranslation}>
             <HiMiniSpeakerWave className="text-gray-500 w-6 h-6" />
           </button>
         </div>
@@ -87,7 +110,10 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
         >
           {recording ? <FaStop /> : <FaMicrophone />}
         </button>
-        <button className="px-6 py-2 bg-blue-500 text-white rounded-full shadow-md hover:bg-blue-600">
+        <button
+          className="px-6 py-2 bg-blue-500 text-white rounded-full shadow-md hover:bg-blue-600"
+          onClick={() => setTriggerTranslation(true)}
+        >
           Translate
         </button>
       </div>
