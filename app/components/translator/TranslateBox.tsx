@@ -33,6 +33,10 @@ interface TranslateBoxProps {
   setTriggerTranslation: (trigger: boolean) => void;
   inputLanguage: string;
   setInputLanguage: (inputLanguage: string) => void;
+  onAutoDetect: (autoDetect: boolean) => void;
+  translation: string;
+  setTranslation: (translation: string) => void;
+  onClearText: () => void;
 }
 
 const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
@@ -45,9 +49,12 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
     recording,
     inputLanguage,
     setInputLanguage,
+    onAutoDetect,
+    translation,
+    setTranslation,
+    onClearText,
   } = props;
 
-  const [translation, setTranslation] = React.useState<string>("");
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const lastTextRef = React.useRef<string>("");
 
@@ -103,6 +110,7 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
         ) {
           console.log("Detected language:", langName);
           setInputLanguage(langName);
+          onAutoDetect(true);
         }
       }
     } catch (err) {
@@ -187,7 +195,7 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
           <button
             className="p-1"
             title="Clear translation"
-            onClick={() => setTranslation("")}
+            onClick={onClearText}
             disabled={!translation}
           >
             <IoClose

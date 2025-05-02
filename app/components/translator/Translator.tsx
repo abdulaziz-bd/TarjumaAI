@@ -31,8 +31,10 @@ const Translator: React.FC = () => {
   const [progressItems, setProgressItems] = useState<any[]>([]);
 
   const [inputLanguage, setInputLanguage] = useState("Detect Language");
+  const [autoDetect, setAutoDetect] = useState(false);
   const [translateLanguage, setTranslateLanguage] = useState("Arabic");
   const [triggerTranslation, setTriggerTranslation] = useState(false);
+  const [translation, setTranslation] = React.useState<string>("");
 
   // Processing
   const [recording, setRecording] = useState(false);
@@ -202,7 +204,6 @@ const Translator: React.FC = () => {
     if (chunks.length > 0) {
       const blob = new Blob(chunks, { type: recorderRef.current.mimeType });
       const fileReader = new FileReader();
-
       fileReader.onloadend = async () => {
         try {
           const arrayBuffer = fileReader.result as ArrayBuffer;
@@ -247,6 +248,15 @@ const Translator: React.FC = () => {
   if (isWebGPUAvailable === null) {
     return <div>Loading...</div>;
   }
+
+  const handleClearText = () => {
+    if (recording) {
+      stopRecording();
+    }
+    setRecording(false);
+    setText("");
+    setTranslation("");
+  };
 
   return isWebGPUAvailable ? (
     <div className="flex flex-col items-center justify-center bg-gray-100">
@@ -308,6 +318,12 @@ const Translator: React.FC = () => {
             setInputLanguage={setInputLanguage}
             translateLanguage={translateLanguage}
             setTranslateLanguage={setTranslateLanguage}
+            autoDetect={autoDetect}
+            onAutoDetect={setAutoDetect}
+            setText={setText}
+            text={text}
+            setTranslation={setTranslation}
+            translation={translation}
           />
         </div>
         <div className="flex items-center justify-center mb-10">
@@ -320,6 +336,8 @@ const Translator: React.FC = () => {
             onStartRecording={startRecording}
             onStopRecording={stopRecording}
             setTriggerTranslation={setTriggerTranslation}
+            autoDetect={autoDetect}
+            onClearText={handleClearText}
           />
           <TranslateBox
             translateLanguage={translateLanguage}
@@ -330,6 +348,10 @@ const Translator: React.FC = () => {
             triggerTranslation={triggerTranslation}
             setTriggerTranslation={setTriggerTranslation}
             recording={recording}
+            onAutoDetect={setAutoDetect}
+            translation={translation}
+            setTranslation={setTranslation}
+            onClearText={handleClearText}
           />
         </div>
       </div>

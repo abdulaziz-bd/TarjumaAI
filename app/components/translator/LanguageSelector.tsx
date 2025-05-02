@@ -7,7 +7,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { HiSwitchHorizontal } from "react-icons/hi";
 import { IoIosArrowDropdown, IoIosArrowDropdownCircle } from "react-icons/io";
 import { MdAutoAwesome } from "react-icons/md";
@@ -18,6 +18,12 @@ interface LanguageSelectorProps {
   setInputLanguage: (language: string) => void;
   translateLanguage: string;
   setTranslateLanguage: (language: string) => void;
+  autoDetect: boolean;
+  onAutoDetect: (autoDetect: boolean) => void;
+  setText: (text: string) => void;
+  text: string;
+  setTranslation: (translation: string) => void;
+  translation: string;
 }
 
 const LanguageSelector: React.FC<LanguageSelectorProps> = (props) => {
@@ -26,6 +32,12 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = (props) => {
     setInputLanguage,
     translateLanguage,
     setTranslateLanguage,
+    autoDetect,
+    onAutoDetect,
+    setText,
+    setTranslation,
+    translation,
+    text,
   } = props;
   const [leftOpen, setLeftOpen] = useState(false);
   const [rightOpen, setRightOpen] = useState(false);
@@ -59,6 +71,9 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = (props) => {
 
     setInputLanguage(language);
     setIsAutoDetect(language === "Detect Language");
+    if (isAutoDetect) {
+      onAutoDetect(false);
+    }
     setLeftOpen(false);
   };
 
@@ -80,7 +95,16 @@ const LanguageSelector: React.FC<LanguageSelectorProps> = (props) => {
     const temp = inputLanguage;
     setInputLanguage(translateLanguage);
     setTranslateLanguage(temp);
+    setText(translation);
+    setTranslation(text);
+    onAutoDetect(false);
   };
+
+  useEffect(() => {
+    if (autoDetect) {
+      setIsAutoDetect(false);
+    }
+  }, [autoDetect]);
 
   return (
     <div className="items-center flex px-4 py-4 gap-4">

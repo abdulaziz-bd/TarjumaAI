@@ -15,6 +15,8 @@ interface InputBoxProps {
   onStartRecording: () => void;
   onStopRecording: () => void;
   setTriggerTranslation: (trigger: boolean) => void;
+  autoDetect: boolean;
+  onClearText: () => void;
 }
 
 const InputBox: React.FC<InputBoxProps> = (props) => {
@@ -27,6 +29,8 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
     onStartRecording,
     onStopRecording,
     setTriggerTranslation,
+    autoDetect,
+    onClearText,
   } = props;
 
   const [translation, setTranslation] = React.useState<{
@@ -41,14 +45,6 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
 
     fetchTranslation();
   }, []);
-
-  const handleClearText = () => {
-    if (recording) {
-      onStopRecording();
-    }
-    setRecording(false);
-    setText("");
-  };
 
   const handleRecordingToggle = () => {
     if (inputLanguage === "Detect Language") {
@@ -84,12 +80,21 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
     <div className="bg-white shadow-md rounded-2xl p-4 mb-4 w-full min-w-[500px] max-w-4xl h-[280px] mr-4 flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
-          <span className="text-xl font-bold mr-2">{inputLanguage}</span>
+          <span className="text-xl font-bold mr-2">
+            {inputLanguage}
+            {autoDetect ? (
+              <span className="ml-1 px-2 py-1 border rounded-full border-blue-500 text-blue-500 text-xs">
+                Auto-detect
+              </span>
+            ) : (
+              ""
+            )}
+          </span>
           <button className="p-1" onClick={speakTranslation}>
             <HiMiniSpeakerWave className="text-gray-500 w-6 h-6" />
           </button>
         </div>
-        <button className="p-1" onClick={handleClearText}>
+        <button className="p-1" onClick={onClearText}>
           <IoClose className="text-gray-500 w-6 h-6" title="clear text" />
         </button>
       </div>
