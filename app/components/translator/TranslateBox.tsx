@@ -57,6 +57,7 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
 
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const lastTextRef = React.useRef<string>("");
+  let characterCount = 10;
 
   // Function to call the translate API
   const callTranslateAPI = async (
@@ -122,10 +123,15 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
 
   // Call the API when text changes during recording
   useEffect(() => {
+    const numberOfCharacters = textToTranslate.length;
+    if (numberOfCharacters < characterCount) {
+      return;
+    }
     if (recording && textToTranslate) {
       // Direct call without debounce
       console.log("Calling API with text:", textToTranslate);
       callTranslateAPI(textToTranslate, targetLang);
+      characterCount = numberOfCharacters + characterCount;
     }
   }, [textToTranslate, targetLang, recording]);
 
@@ -179,20 +185,6 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
         </div>
         <div className="flex items-center">
           <button
-            className="p-1 mr-2"
-            title="Copy translation"
-            onClick={copyToClipboard}
-            disabled={!translation}
-          >
-            <FaRegCopy
-              className={`w-5 h-5 ${
-                translation
-                  ? "text-gray-500 hover:text-gray-700"
-                  : "text-gray-300"
-              }`}
-            />
-          </button>
-          <button
             className="p-1"
             title="Clear translation"
             onClick={onClearText}
@@ -218,11 +210,19 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
         )}
       </div>
       <div className="flex justify-end mt-4">
-        <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded-full shadow-md hover:bg-gray-300 mr-2">
-          Suggest Edit
-        </button>
-        <button className="px-4 py-2 bg-blue-500 text-white rounded-full shadow-md hover:bg-blue-600">
-          Share
+        <button
+          className="p-1 mr-2"
+          title="Copy translation"
+          onClick={copyToClipboard}
+          disabled={!translation}
+        >
+          <FaRegCopy
+            className={`w-5 h-5 ${
+              translation
+                ? "text-gray-500 hover:text-gray-700"
+                : "text-gray-300"
+            }`}
+          />
         </button>
       </div>
     </div>
