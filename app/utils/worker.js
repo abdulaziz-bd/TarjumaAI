@@ -23,26 +23,33 @@ class AutomaticSpeechRecognitionPipeline {
   static async getInstance(progress_callback = null) {
     this.model_id = "onnx-community/whisper-base";
 
-    this.tokenizer ??= AutoTokenizer.from_pretrained(this.model_id, {
-      progress_callback,
-    });
-    this.processor ??= AutoProcessor.from_pretrained(this.model_id, {
-      progress_callback,
-    });
-
-    this.model ??= WhisperForConditionalGeneration.from_pretrained(
-      this.model_id,
-      {
-        dtype: {
-          encoder_model: "fp32", // 'fp16' works too
-          decoder_model_merged: "q4", // or 'fp32' ('fp16' is broken)
-        },
-        device: "webgpu",
+    if (!this.tokenizer) {
+      this.tokenizer = await AutoTokenizer.from_pretrained(this.model_id, {
         progress_callback,
-      }
-    );
+      });
+    }
 
-    return Promise.all([this.tokenizer, this.processor, this.model]);
+    if (!this.processor) {
+      this.processor = await AutoProcessor.from_pretrained(this.model_id, {
+        progress_callback,
+      });
+    }
+
+    if (!this.model) {
+      this.model = await WhisperForConditionalGeneration.from_pretrained(
+        this.model_id,
+        {
+          dtype: {
+            encoder_model: "fp32", // 'fp16' works too
+            decoder_model_merged: "q4", // or 'fp32' ('fp16' is broken)
+          },
+          device: "webgpu",
+          progress_callback,
+        }
+      );
+    }
+
+    return [this.tokenizer, this.processor, this.model];
   }
 }
 
@@ -108,26 +115,38 @@ async function load() {
     data: "Loading model...",
   });
 
-  // Load the pipeline and save it for future use.
-  const [tokenizer, processor, model] =
-    await AutomaticSpeechRecognitionPipeline.getInstance((x) => {
-      // We also add a progress callback to the pipeline so that we can
-      // track model loading.
-      self.postMessage(x);
+  try {
+    // Load the pipeline and save it for future use.
+    const [tokenizer, processor, model] =
+      await AutomaticSpeechRecognitionPipeline.getInstance((x) => {
+        // We also add a progress callback to the pipeline so that we can
+        // track model loading.
+        self.postMessage(x);
+      });
+
+    self.postMessage({
+      status: "loading",
+      data: "Compiling shaders and warming up model...",
     });
 
-  self.postMessage({
-    status: "loading",
-    data: "Compiling shaders and warming up model...",
-  });
-
-  // Run model with dummy input to compile shaders
-  await model.generate({
-    input_features: full([1, 80, 3000], 0.0),
-    max_new_tokens: 1,
-  });
-  self.postMessage({ status: "ready" });
+    // Run model with dummy input to compile shaders
+    if (typeof model.generate === "function") {
+      await model.generate({
+        input_features: full([1, 80, 3000], 0.0),
+        max_new_tokens: 1,
+      });
+      self.postMessage({ status: "ready" });
+    } else {
+      throw new Error("Model generate method is not available");
+    }
+  } catch (error) {
+    self.postMessage({
+      status: "error",
+      message: error.message || "Failed to load model",
+    });
+  }
 }
+
 // Listen for messages from the main thread
 self.addEventListener("message", async (e) => {
   const { type, data } = e.data;

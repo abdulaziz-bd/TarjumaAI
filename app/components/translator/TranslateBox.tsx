@@ -1,28 +1,8 @@
-import React, { useEffect } from "react";
+import debounce from "lodash/debounce";
+import React, { useCallback, useEffect } from "react";
 import { FaRegCopy } from "react-icons/fa";
 import { HiMiniSpeakerWave } from "react-icons/hi2";
 import { IoClose } from "react-icons/io5";
-
-const translateLanguageMap: { [key: string]: string } = {
-  English: "eng_Latn",
-  Arabic: "arb_Arab",
-  German: "deu_Latn",
-  Spanish: "spa_Latn",
-  French: "fra_Latn",
-  Bengali: "ben_Beng",
-  // Add more languages as needed
-};
-
-// Reverse mapping for display purposes
-const languageCodeToName: { [key: string]: string } = {
-  eng_Latn: "English",
-  arb_Arab: "Arabic",
-  deu_Latn: "German",
-  spa_Latn: "Spanish",
-  fra_Latn: "French",
-  ben_Beng: "Bengali",
-  // Add more as needed
-};
 
 interface TranslateBoxProps {
   translateLanguage: string;
@@ -57,18 +37,12 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
 
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
   const lastTextRef = React.useRef<string>("");
-  let characterCount = 10;
 
   // Function to call the translate API
   const callTranslateAPI = async (
     textToTranslate: string,
     targetLang: string
   ) => {
-    // Don't translate if the text is the same as last time
-    if (textToTranslate === lastTextRef.current) {
-      return;
-    }
-
     // Update the last text reference
     lastTextRef.current = textToTranslate;
 
@@ -77,7 +51,7 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
       return;
     }
 
-    if (!targetLang || !translateLanguageMap[targetLang]) {
+    if (!targetLang) {
       console.error("Invalid target language:", targetLang);
       setTranslation("Target language not supported");
       return;
@@ -86,14 +60,18 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch("/api/translate", {
+      const response = await fetch("http://localhost:3000/api/translate", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           text: textToTranslate,
-          targetLang: translateLanguageMap[targetLang],
+          source_lang:
+            inputLanguage !== "Detect Language"
+              ? inputLanguage.toLowerCase()
+              : "",
+          target_lang: targetLang.toLowerCase(),
         }),
       });
 
@@ -101,14 +79,14 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
       setTranslation(data.translation);
 
       // Set detected language if available in the response
-      if (data.detectedLanguage) {
+      if (data.detected_source) {
         // Convert language code to language name for display
-        const langName =
-          languageCodeToName[data.detectedLanguage] || data.detectedLanguage;
-        if (
-          inputLanguage === "Detect Language" &&
-          languageCodeToName[data.detectedLanguage]
-        ) {
+        const langName = data.detected_source
+          ? data.detected_source.charAt(0).toUpperCase() +
+            data.detected_source.slice(1)
+          : "";
+
+        if (inputLanguage === "Detect Language" && langName) {
           console.log("Detected language:", langName);
           setInputLanguage(langName);
           onAutoDetect(true);
@@ -121,19 +99,28 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
     }
   };
 
+  // Create a debounced version of the translate function that waits n-seconds
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const debouncedTranslate = useCallback(
+    debounce((text: string, lang: string) => {
+      if (text && text !== lastTextRef.current) {
+        console.log("Debounced translate call with:", text);
+        callTranslateAPI(text, lang);
+      }
+    }, 1000),
+    [targetLang]
+  );
+
   // Call the API when text changes during recording
   useEffect(() => {
-    const numberOfCharacters = textToTranslate.length;
-    if (numberOfCharacters < characterCount) {
-      return;
-    }
     if (recording && textToTranslate) {
-      // Direct call without debounce
-      console.log("Calling API with text:", textToTranslate);
-      callTranslateAPI(textToTranslate, targetLang);
-      characterCount = numberOfCharacters + characterCount;
+      // Check if textToTranslate is a non-empty string without using trim
+      const textContent = String(textToTranslate);
+      if (textContent && textContent !== " [BLANK]") {
+        debouncedTranslate(textContent, targetLang);
+      }
     }
-  }, [textToTranslate, targetLang, recording]);
+  }, [textToTranslate, targetLang, recording, debouncedTranslate]);
 
   // Handle manual trigger
   useEffect(() => {
@@ -147,7 +134,6 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
   const copyToClipboard = () => {
     if (translation) {
       navigator.clipboard.writeText(translation);
-      // Optionally add a copied notification here
     }
   };
 
@@ -165,7 +151,7 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
   };
 
   return (
-    <div className="bg-white shadow-md rounded-2xl p-4 mb-4 w-full min-w-[500px] max-w-4xl h-[280px] flex flex-col">
+    <div className="bg-white shadow-md rounded-2xl p-3 sm:p-4 w-full md:max-w-xl min-h-[200px] sm:min-h-[250px] flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <span className="text-xl font-bold mr-2">{translateLanguage}</span>

@@ -77,7 +77,7 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
   };
 
   return (
-    <div className="bg-white shadow-md rounded-2xl p-4 mb-4 w-full min-w-[500px] max-w-4xl h-[280px] mr-4 flex flex-col">
+    <div className="bg-white shadow-md rounded-2xl p-3 sm:p-4 w-full md:max-w-xl min-h-[200px] sm:min-h-[250px] flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <span className="text-xl font-bold mr-2">

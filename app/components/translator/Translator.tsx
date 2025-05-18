@@ -11,6 +11,15 @@ declare global {
   }
 }
 
+const languageCodes: { [key: string]: string } = {
+  English: "en",
+  Arabic: "ar",
+  Deutsch: "de",
+  Spanish: "es",
+  French: "fr",
+  Bengali: "bn",
+};
+
 const WHISPER_SAMPLING_RATE = 16_000;
 const MAX_AUDIO_LENGTH = 30; // seconds
 const MAX_SAMPLES = WHISPER_SAMPLING_RATE * MAX_AUDIO_LENGTH;
@@ -28,6 +37,7 @@ const Translator: React.FC = () => {
   // Model loading and progress
   const [status, setStatus] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [progressItems, setProgressItems] = useState<any[]>([]);
 
   const [inputLanguage, setInputLanguage] = useState("Detect Language");
@@ -40,9 +50,11 @@ const Translator: React.FC = () => {
   const [recording, setRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [chunks, setChunks] = useState<BlobPart[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [stream, setStream] = useState<MediaStream | null>(null);
 
   const [text, setText] = useState("");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [tps, setTps] = useState(0);
 
   // Function to start recording manually
@@ -222,7 +234,9 @@ const Translator: React.FC = () => {
                 data: {
                   audio,
                   language:
-                    inputLanguage !== "Detect Language" ? inputLanguage : "",
+                    inputLanguage !== "Detect Language"
+                      ? languageCodes[inputLanguage]
+                      : "",
                 },
               });
             }
@@ -259,10 +273,10 @@ const Translator: React.FC = () => {
   };
 
   return isWebGPUAvailable ? (
-    <div className="flex flex-col items-center justify-center bg-gray-100">
+    <div className="flex flex-col items-center justify-center w-full p-4">
       {status === null && (
-        <>
-          <p className="max-w-[480px] mb-4">
+        <div className="max-w-md w-full mx-auto text-center">
+          <p className="mb-4 text-sm sm:text-base">
             <br />
             You are about to load{" "}
             <a
@@ -301,67 +315,69 @@ const Translator: React.FC = () => {
           >
             Load model
           </button>
-        </>
+        </div>
       )}
       {status === "loading" && (
-        <div className="w-full max-w-[500px] text-left mx-auto p-4">
+        <div className="w-full max-w-md mx-auto p-4">
           <p className="text-center">{loadingMessage}</p>
           {progressItems.map(({ file, progress, total }, i) => (
             <Progress key={i} text={file} percentage={progress} total={total} />
           ))}
         </div>
       )}
-      <div>
-        <div className="flex items-center justify-center mt-10">
-          <LanguageSelector
-            inputLanguage={inputLanguage}
-            setInputLanguage={setInputLanguage}
-            translateLanguage={translateLanguage}
-            setTranslateLanguage={setTranslateLanguage}
-            autoDetect={autoDetect}
-            onAutoDetect={setAutoDetect}
-            setText={setText}
-            text={text}
-            setTranslation={setTranslation}
-            translation={translation}
-          />
+      {status === "ready" && (
+        <div className="w-full max-w-6xl mx-auto">
+          <div className="flex flex-col items-center justify-center mt-6 mb-4">
+            <LanguageSelector
+              inputLanguage={inputLanguage}
+              setInputLanguage={setInputLanguage}
+              translateLanguage={translateLanguage}
+              setTranslateLanguage={setTranslateLanguage}
+              autoDetect={autoDetect}
+              onAutoDetect={setAutoDetect}
+              setText={setText}
+              text={text}
+              setTranslation={setTranslation}
+              translation={translation}
+            />
+          </div>
+          <div className="flex flex-col md:flex-row items-center justify-center gap-4 mb-8 px-2">
+            <InputBox
+              inputLanguage={inputLanguage}
+              recording={recording}
+              setRecording={setRecording}
+              text={text}
+              setText={setText}
+              onStartRecording={startRecording}
+              onStopRecording={stopRecording}
+              setTriggerTranslation={setTriggerTranslation}
+              autoDetect={autoDetect}
+              onClearText={handleClearText}
+            />
+            <TranslateBox
+              translateLanguage={translateLanguage}
+              inputLanguage={inputLanguage}
+              setInputLanguage={setInputLanguage}
+              targetLang={translateLanguage}
+              textToTranslate={text}
+              triggerTranslation={triggerTranslation}
+              setTriggerTranslation={setTriggerTranslation}
+              recording={recording}
+              onAutoDetect={setAutoDetect}
+              translation={translation}
+              setTranslation={setTranslation}
+              onClearText={handleClearText}
+            />
+          </div>
         </div>
-        <div className="flex items-center justify-center mb-10">
-          <InputBox
-            inputLanguage={inputLanguage}
-            recording={recording}
-            setRecording={setRecording}
-            text={text}
-            setText={setText}
-            onStartRecording={startRecording}
-            onStopRecording={stopRecording}
-            setTriggerTranslation={setTriggerTranslation}
-            autoDetect={autoDetect}
-            onClearText={handleClearText}
-          />
-          <TranslateBox
-            translateLanguage={translateLanguage}
-            inputLanguage={inputLanguage}
-            setInputLanguage={setInputLanguage}
-            targetLang={translateLanguage}
-            textToTranslate={text}
-            triggerTranslation={triggerTranslation}
-            setTriggerTranslation={setTriggerTranslation}
-            recording={recording}
-            onAutoDetect={setAutoDetect}
-            translation={translation}
-            setTranslation={setTranslation}
-            onClearText={handleClearText}
-          />
-        </div>
-      </div>
+      )}
     </div>
   ) : (
-    <div className="flex flex-col items-center justify-center bg-gray-100">
-      <h1 className="text-2xl font-bold text-red-500 mt-10">
+    <div className="flex flex-col items-center justify-center w-full p-4 text-center my-12">
+      <h1 className="text-xl sm:text-2xl font-bold text-red-500">
         WebGPU is not supported on your browser!
       </h1>
-      <p className="text-gray-700 mt-4">
+      <p className="text-gray-700 mt-4 max-w-md mx-auto">
         Please use a browser that supports WebGPU to use this feature.
       </p>
     </div>
