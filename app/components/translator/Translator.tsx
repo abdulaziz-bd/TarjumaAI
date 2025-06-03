@@ -135,11 +135,13 @@ const Translator: React.FC = () => {
       case "error":
         setIsProcessing(false);
         setStatus("error");
-        toast.error(e.data.message || "An error occurred with the transcription model.");
+        toast.error(
+          e.data.message || "An error occurred with the transcription model."
+        );
         break;
     }
-  }, [ ]); // Dependencies: setStatus, setLoadingMessage, setProgressItems, setIsProcessing, setText.
-            // These are stable state setters from useState, so empty array is fine.
+  }, []); // Dependencies: setStatus, setLoadingMessage, setProgressItems, setIsProcessing, setText.
+  // These are stable state setters from useState, so empty array is fine.
 
   // Worker setup
   useEffect(() => {
@@ -179,7 +181,12 @@ const Translator: React.FC = () => {
             setChunks([]); // Keep for now, might remove if fully obsolete
           };
           recorderRef.current.ondataavailable = async (e) => {
-            if (e.data.size > 0 && worker.current && audioContextRef.current && !isProcessing) {
+            if (
+              e.data.size > 0 &&
+              worker.current &&
+              audioContextRef.current &&
+              !isProcessing
+            ) {
               // Check if the worker is not already processing something from a previous chunk
               // This simple check means chunks might be dropped if a new one arrives while the previous is still being sent/processed by the worker.
               // More sophisticated queueing or informing the worker to expect more data could be implemented if needed.
@@ -192,13 +199,14 @@ const Translator: React.FC = () => {
               fileReader.onloadend = async () => {
                 try {
                   const arrayBuffer = fileReader.result as ArrayBuffer;
-                  const decoded = await audioContextRef.current!.decodeAudioData(
-                    arrayBuffer
-                  );
+                  const decoded =
+                    await audioContextRef.current!.decodeAudioData(arrayBuffer);
                   let audio = decoded.getChannelData(0);
                   // MAX_SAMPLES check might be less relevant for small timeslices but kept for safety
                   if (audio.length > MAX_SAMPLES) {
-                    console.warn(`Audio chunk exceeds MAX_SAMPLES, truncating. Length: ${audio.length}`);
+                    console.warn(
+                      `Audio chunk exceeds MAX_SAMPLES, truncating. Length: ${audio.length}`
+                    );
                     audio = audio.slice(-MAX_SAMPLES);
                   }
 
@@ -213,7 +221,10 @@ const Translator: React.FC = () => {
                     },
                   });
                 } catch (error) {
-                  console.error("Audio processing error in ondataavailable:", error);
+                  console.error(
+                    "Audio processing error in ondataavailable:",
+                    error
+                  );
                   setIsProcessing(false); // Reset flag on error
                 }
               };
@@ -230,7 +241,9 @@ const Translator: React.FC = () => {
         });
     } else {
       console.error("getUserMedia not supported on your browser!");
-      toast.error("Your browser does not support microphone access (getUserMedia).");
+      toast.error(
+        "Your browser does not support microphone access (getUserMedia)."
+      );
     }
 
     return () => {
@@ -243,11 +256,6 @@ const Translator: React.FC = () => {
 
   // Audio processing useEffect is now removed as logic moved to ondataavailable
 
-  // Render loading state while WebGPU availability is being checked
-  if (isWebGPUAvailable === null) {
-    return <div>Loading...</div>;
-  }
-
   const handleClearText = useCallback(() => {
     if (recording) {
       stopRecording(); // stopRecording is already memoized
@@ -256,6 +264,11 @@ const Translator: React.FC = () => {
     setText("");
     setTranslation("");
   }, [recording, stopRecording]);
+
+  // Render loading state while WebGPU availability is being checked
+  if (isWebGPUAvailable === null) {
+    return <div>Loading...</div>;
+  }
 
   return isWebGPUAvailable ? (
     <div className="flex flex-col items-center justify-center w-full p-4">
