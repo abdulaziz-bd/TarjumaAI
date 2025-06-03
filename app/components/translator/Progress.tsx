@@ -1,3 +1,5 @@
+import React from "react";
+
 function formatBytes(size: number): string {
   const i = size === 0 ? 0 : Math.floor(Math.log(size) / Math.log(1024));
   return (
@@ -12,11 +14,11 @@ interface ProgressProps {
   total?: number;
 }
 
-export default function Progress({
+const ProgressComponent: React.FC<ProgressProps> = ({
   text,
   percentage = 0,
   total,
-}: ProgressProps) {
+}) => {
   return (
     <div className="w-full bg-gray-100 dark:bg-gray-700 text-left rounded-lg overflow-hidden mb-0.5">
       <div
@@ -28,4 +30,7 @@ export default function Progress({
       </div>
     </div>
   );
-}
+};
+
+export const Progress = React.memo(ProgressComponent);
+export default Progress;

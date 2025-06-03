@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { FaStop } from "react-icons/fa";
 import { FaMicrophone } from "react-icons/fa6";
 import { HiMiniSpeakerWave } from "react-icons/hi2";
@@ -17,9 +17,10 @@ interface InputBoxProps {
   setTriggerTranslation: (trigger: boolean) => void;
   autoDetect: boolean;
   onClearText: () => void;
+  isProcessing?: boolean;
 }
 
-const InputBox: React.FC<InputBoxProps> = (props) => {
+const InputBoxComponent: React.FC<InputBoxProps> = (props) => {
   const {
     inputLanguage,
     recording,
@@ -31,6 +32,7 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
     setTriggerTranslation,
     autoDetect,
     onClearText,
+    isProcessing,
   } = props;
 
   const [translation, setTranslation] = React.useState<{
@@ -46,7 +48,7 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
     fetchTranslation();
   }, []);
 
-  const handleRecordingToggle = () => {
+  const handleRecordingToggle = useCallback(() => {
     if (inputLanguage === "Detect Language") {
       toast.error("Cannot record when using auto-detect", {
         position: "bottom-right",
@@ -61,10 +63,10 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
       onStartRecording();
       setRecording(true);
     }
-  };
+  }, [inputLanguage, recording, onStopRecording, setRecording, onStartRecording]);
 
   // Function to speak the translation
-  const speakTranslation = () => {
+  const speakTranslation = useCallback(() => {
     if (text && "speechSynthesis" in window) {
       const utterance = new SpeechSynthesisUtterance(text);
       // Try to match language code for speech
@@ -74,10 +76,10 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
       }
       window.speechSynthesis.speak(utterance);
     }
-  };
+  }, [text, inputLanguage]);
 
   return (
-    <div className="bg-white shadow-md rounded-2xl p-3 sm:p-4 w-full md:max-w-xl min-h-[200px] sm:min-h-[250px] flex flex-col">
+    <div className="bg-white shadow-xl rounded-3xl p-6 w-full md:max-w-xl min-h-[200px] sm:min-h-[250px] flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <span className="text-xl font-bold mr-2">
@@ -100,7 +102,7 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
       </div>
       <div className="flex-1">
         <textarea
-          className="w-full h-full p-4 border-none outline-none resize-none overflow-auto"
+          className="w-full h-full p-4 border border-gray-200 rounded-lg outline-none resize-none overflow-auto"
           placeholder={
             translation?.[inputLanguage] || "Type or paste text here..."
           }
@@ -110,8 +112,9 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
       </div>
       <div className="flex items-center justify-between mt-4">
         <button
-          className="p-4 bg-green-500 text-white rounded-full shadow-md hover:bg-green-600"
+          className="p-4 bg-green-500 text-white rounded-full shadow-md hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
           onClick={handleRecordingToggle}
+          disabled={(recording ? false : (isProcessing || (inputLanguage === "Detect Language")))}
         >
           {recording ? <FaStop /> : <FaMicrophone />}
         </button>
@@ -126,4 +129,5 @@ const InputBox: React.FC<InputBoxProps> = (props) => {
   );
 };
 
+export const InputBox = React.memo(InputBoxComponent);
 export default InputBox;
