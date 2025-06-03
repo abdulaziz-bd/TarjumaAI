@@ -1,8 +1,9 @@
 import debounce from "lodash/debounce";
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, memo } from "react";
 import { FaRegCopy } from "react-icons/fa";
 import { HiMiniSpeakerWave } from "react-icons/hi2";
 import { IoClose } from "react-icons/io5";
+import { toast } from "react-toastify";
 
 interface TranslateBoxProps {
   translateLanguage: string;
@@ -19,7 +20,7 @@ interface TranslateBoxProps {
   onClearText: () => void;
 }
 
-const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
+const TranslateBoxComponent: React.FC<TranslateBoxProps> = (props) => {
   const {
     translateLanguage,
     targetLang,
@@ -92,8 +93,9 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
           onAutoDetect(true);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Translation error:", err);
+      toast.error("Translation failed: " + (err.message || "Please try again later"));
     } finally {
       setIsLoading(false);
     }
@@ -107,8 +109,8 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
         console.log("Debounced translate call with:", text);
         callTranslateAPI(text, lang);
       }
-    }, 1000),
-    [targetLang]
+    }, 400), // Reduced debounce timer
+    [targetLang, inputLanguage, setInputLanguage, onAutoDetect, setTranslation] // Added dependencies
   );
 
   // Call the API when text changes during recording
@@ -128,17 +130,17 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
       callTranslateAPI(textToTranslate, targetLang);
       setTriggerTranslation(false);
     }
-  }, [triggerTranslation, textToTranslate, targetLang, setTriggerTranslation]);
+  }, [triggerTranslation, textToTranslate, targetLang, setTriggerTranslation, callTranslateAPI]); // Added callTranslateAPI
 
   // Function to copy translation to clipboard
-  const copyToClipboard = () => {
+  const copyToClipboard = useCallback(() => {
     if (translation) {
       navigator.clipboard.writeText(translation);
     }
-  };
+  }, [translation]);
 
   // Function to speak the translation
-  const speakTranslation = () => {
+  const speakTranslation = useCallback(() => {
     if (translation && "speechSynthesis" in window) {
       const utterance = new SpeechSynthesisUtterance(translation);
       // Try to match language code for speech
@@ -148,10 +150,10 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
       }
       window.speechSynthesis.speak(utterance);
     }
-  };
+  }, [translation, translateLanguage]);
 
   return (
-    <div className="bg-white shadow-md rounded-2xl p-3 sm:p-4 w-full md:max-w-xl min-h-[200px] sm:min-h-[250px] flex flex-col">
+    <div className="bg-white shadow-xl rounded-3xl p-6 w-full md:max-w-xl min-h-[200px] sm:min-h-[250px] flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           <span className="text-xl font-bold mr-2">{translateLanguage}</span>
@@ -186,9 +188,12 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
           </button>
         </div>
       </div>
-      <div className="flex-1 p-4 overflow-auto">
+      <div className="flex-1 p-4 overflow-auto border border-gray-100 rounded-lg">
         {isLoading ? (
-          <p className="text-gray-400">Translating...</p>
+          <>
+            {translation && <p className="text-gray-400 italic">{translation}</p>}
+            <p className="text-blue-500 animate-pulse">Translating...</p>
+          </>
         ) : (
           <p className="text-gray-800">
             {translation || "Translation will appear here..."}
@@ -215,4 +220,5 @@ const TranslateBox: React.FC<TranslateBoxProps> = (props) => {
   );
 };
 
+export const TranslateBox = memo(TranslateBoxComponent);
 export default TranslateBox;

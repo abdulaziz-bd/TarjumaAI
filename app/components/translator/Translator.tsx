@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "react-toastify";
 import InputBox from "./InputBox";
 import LanguageSelector from "./LanguageSelector";
 import Progress from "./Progress";
@@ -24,6 +25,14 @@ const WHISPER_SAMPLING_RATE = 16_000;
 const MAX_AUDIO_LENGTH = 30; // seconds
 const MAX_SAMPLES = WHISPER_SAMPLING_RATE * MAX_AUDIO_LENGTH;
 
+interface ProgressItem {
+  file: string;
+  progress: number;
+  total: number;
+  status: string;
+  name?: string;
+}
+
 const Translator: React.FC = () => {
   const worker = useRef<Worker | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -37,8 +46,7 @@ const Translator: React.FC = () => {
   // Model loading and progress
   const [status, setStatus] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState("");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [progressItems, setProgressItems] = useState<any[]>([]);
+  const [progressItems, setProgressItems] = useState<ProgressItem[]>([]);
 
   const [inputLanguage, setInputLanguage] = useState("Detect Language");
   const [autoDetect, setAutoDetect] = useState(false);
@@ -58,28 +66,80 @@ const Translator: React.FC = () => {
   const [tps, setTps] = useState(0);
 
   // Function to start recording manually
-  const startRecording = () => {
+  const startRecording = useCallback(() => {
     if (
       recorderRef.current &&
       status === "ready" &&
       !recording &&
       !isProcessing
     ) {
-      recorderRef.current.start();
+      recorderRef.current.start(1000); // Start with 1-second timeslice
     }
-  };
+  }, [status, recording, isProcessing]);
 
   // Function to stop recording manually
-  const stopRecording = () => {
+  const stopRecording = useCallback(() => {
     if (recorderRef.current && recording) {
       recorderRef.current.stop();
     }
-  };
+  }, [recording]);
 
   // Check WebGPU availability after component mounts
   useEffect(() => {
     setIsWebGPUAvailable(typeof navigator !== "undefined" && !!navigator.gpu);
   }, []);
+
+  // Worker setup
+  const onMessageReceived = useCallback((e: MessageEvent) => {
+    switch (e.data.status) {
+      case "loading":
+        setStatus("loading");
+        setLoadingMessage(e.data.data);
+        break;
+      case "initiate":
+        setProgressItems((prev) => [...prev, e.data as ProgressItem]);
+        break;
+      case "progress":
+        setProgressItems((prev) =>
+          prev.map((item) => {
+            if (item.file === e.data.file) {
+              return { ...item, ...(e.data as ProgressItem) };
+            }
+            return item;
+          })
+        );
+        break;
+      case "done":
+        setProgressItems((prev) =>
+          prev.filter((item) => item.file !== e.data.file)
+        );
+        break;
+      case "ready":
+        setStatus("ready");
+        break;
+      case "start":
+        setIsProcessing(true);
+        // requestData logic was here, but might not be needed with timeslice
+        break;
+      case "update":
+        setText(e.data.output);
+        break;
+      case "complete":
+        setIsProcessing(false);
+        if (Array.isArray(e.data.output)) {
+          setText(e.data.output.join(" "));
+        } else {
+          setText(e.data.output);
+        }
+        break;
+      case "error":
+        setIsProcessing(false);
+        setStatus("error");
+        toast.error(e.data.message || "An error occurred with the transcription model.");
+        break;
+    }
+  }, [ ]); // Dependencies: setStatus, setLoadingMessage, setProgressItems, setIsProcessing, setText.
+            // These are stable state setters from useState, so empty array is fine.
 
   // Worker setup
   useEffect(() => {
@@ -92,62 +152,13 @@ const Translator: React.FC = () => {
       );
     }
 
-    const onMessageReceived = (e: MessageEvent) => {
-      switch (e.data.status) {
-        case "loading":
-          setStatus("loading");
-          setLoadingMessage(e.data.data);
-          break;
-        case "initiate":
-          setProgressItems((prev) => [...prev, e.data]);
-          break;
-        case "progress":
-          setProgressItems((prev) =>
-            prev.map((item) => {
-              if (item.file === e.data.file) {
-                return { ...item, ...e.data };
-              }
-              return item;
-            })
-          );
-          break;
-        case "done":
-          setProgressItems((prev) =>
-            prev.filter((item) => item.file !== e.data.file)
-          );
-          break;
-        case "ready":
-          setStatus("ready");
-          // Removed automatic recorder start
-          break;
-        case "start":
-          setIsProcessing(true);
-          if (recorderRef.current && recording) {
-            try {
-              recorderRef.current.requestData();
-            } catch (error) {
-              console.error("Error requesting data:", error);
-            }
-          }
-          break;
-        case "update":
-          const { tps } = e.data;
-          setTps(tps);
-          break;
-        case "complete":
-          setIsProcessing(false);
-          setText(e.data.output);
-          break;
-      }
-    };
-
     worker.current.addEventListener("message", onMessageReceived);
     return () => {
       if (worker.current) {
         worker.current.removeEventListener("message", onMessageReceived);
       }
     };
-  }, [recording]);
+  }, [onMessageReceived]); // Now depends on the memoized onMessageReceived
 
   // MediaRecorder setup
   useEffect(() => {
@@ -165,34 +176,61 @@ const Translator: React.FC = () => {
 
           recorderRef.current.onstart = () => {
             setRecording(true);
-            setChunks([]);
+            setChunks([]); // Keep for now, might remove if fully obsolete
           };
-          recorderRef.current.ondataavailable = (e) => {
-            if (e.data.size > 0) {
-              setChunks((prev) => [...prev, e.data]);
-            } else {
-              // Only call requestData if the recorder is in the "recording" state
-              setTimeout(() => {
-                if (
-                  recorderRef.current &&
-                  recorderRef.current.state === "recording"
-                ) {
-                  try {
-                    recorderRef.current.requestData();
-                  } catch (error) {
-                    console.error("Error requesting data:", error);
+          recorderRef.current.ondataavailable = async (e) => {
+            if (e.data.size > 0 && worker.current && audioContextRef.current && !isProcessing) {
+              // Check if the worker is not already processing something from a previous chunk
+              // This simple check means chunks might be dropped if a new one arrives while the previous is still being sent/processed by the worker.
+              // More sophisticated queueing or informing the worker to expect more data could be implemented if needed.
+
+              // Set processing flag. It will be reset by the worker's "complete" or "error" message,
+              // or if an error occurs during local audio processing.
+              setIsProcessing(true);
+              const blob = e.data;
+              const fileReader = new FileReader();
+              fileReader.onloadend = async () => {
+                try {
+                  const arrayBuffer = fileReader.result as ArrayBuffer;
+                  const decoded = await audioContextRef.current!.decodeAudioData(
+                    arrayBuffer
+                  );
+                  let audio = decoded.getChannelData(0);
+                  // MAX_SAMPLES check might be less relevant for small timeslices but kept for safety
+                  if (audio.length > MAX_SAMPLES) {
+                    console.warn(`Audio chunk exceeds MAX_SAMPLES, truncating. Length: ${audio.length}`);
+                    audio = audio.slice(-MAX_SAMPLES);
                   }
+
+                  worker.current!.postMessage({
+                    type: "generate",
+                    data: {
+                      audio,
+                      language:
+                        inputLanguage !== "Detect Language"
+                          ? languageCodes[inputLanguage]
+                          : "",
+                    },
+                  });
+                } catch (error) {
+                  console.error("Audio processing error in ondataavailable:", error);
+                  setIsProcessing(false); // Reset flag on error
                 }
-              }, 25);
+              };
+              fileReader.readAsArrayBuffer(blob);
             }
           };
           recorderRef.current.onstop = () => {
             setRecording(false);
           };
         })
-        .catch((err) => console.error("The following error occurred: ", err));
+        .catch((err) => {
+          console.error("The following error occurred: ", err);
+          toast.error("Error accessing microphone: " + err.message);
+        });
     } else {
       console.error("getUserMedia not supported on your browser!");
+      toast.error("Your browser does not support microphone access (getUserMedia).");
     }
 
     return () => {
@@ -203,74 +241,21 @@ const Translator: React.FC = () => {
     };
   }, []);
 
-  // Audio processing
-  useEffect(() => {
-    if (
-      !recorderRef.current ||
-      !recording ||
-      isProcessing ||
-      status !== "ready"
-    )
-      return;
-
-    if (chunks.length > 0) {
-      const blob = new Blob(chunks, { type: recorderRef.current.mimeType });
-      const fileReader = new FileReader();
-      fileReader.onloadend = async () => {
-        try {
-          const arrayBuffer = fileReader.result as ArrayBuffer;
-          if (audioContextRef.current) {
-            const decoded = await audioContextRef.current.decodeAudioData(
-              arrayBuffer
-            );
-            let audio = decoded.getChannelData(0);
-            if (audio.length > MAX_SAMPLES) {
-              audio = audio.slice(-MAX_SAMPLES);
-            }
-
-            if (worker.current) {
-              worker.current.postMessage({
-                type: "generate",
-                data: {
-                  audio,
-                  language:
-                    inputLanguage !== "Detect Language"
-                      ? languageCodes[inputLanguage]
-                      : "",
-                },
-              });
-            }
-          }
-        } catch (error) {
-          console.error("Audio decoding error:", error);
-        }
-      };
-      fileReader.readAsArrayBuffer(blob);
-    } else {
-      // Only request data if the recorder is active
-      if (recorderRef.current && recorderRef.current.state === "recording") {
-        try {
-          recorderRef.current.requestData();
-        } catch (error) {
-          console.error("Error requesting data:", error);
-        }
-      }
-    }
-  }, [status, recording, isProcessing, chunks, inputLanguage]);
+  // Audio processing useEffect is now removed as logic moved to ondataavailable
 
   // Render loading state while WebGPU availability is being checked
   if (isWebGPUAvailable === null) {
     return <div>Loading...</div>;
   }
 
-  const handleClearText = () => {
+  const handleClearText = useCallback(() => {
     if (recording) {
-      stopRecording();
+      stopRecording(); // stopRecording is already memoized
     }
     setRecording(false);
     setText("");
     setTranslation("");
-  };
+  }, [recording, stopRecording]);
 
   return isWebGPUAvailable ? (
     <div className="flex flex-col items-center justify-center w-full p-4">
@@ -339,12 +324,14 @@ const Translator: React.FC = () => {
               text={text}
               setTranslation={setTranslation}
               translation={translation}
+              isProcessing={isProcessing}
             />
           </div>
           <div className="flex flex-col md:flex-row items-center justify-center gap-4 mb-8 px-2">
             <InputBox
               inputLanguage={inputLanguage}
               recording={recording}
+              isProcessing={isProcessing}
               setRecording={setRecording}
               text={text}
               setText={setText}
